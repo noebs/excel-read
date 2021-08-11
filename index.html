@@ -8,12 +8,11 @@
   action="http://localhost:8080/upload"
   enctype="multipart/form-data"
 >
-  <input id="file-upload" type="file" name="file" />
+  <input id="file-upload" type="file" name="file" draggable="true" />
   <label for="file-upload" id="file-drag">
     <div id="start">
       <i class="fa fa-download" aria-hidden="true"></i>
-      <!-- <div>Select a file or drag here</div> -->
-      <div>Drag not working yet</div>
+      <div>Select a file or drag here</div>
       <div id="notimage" class="hidden">Please select an image</div>
       <span id="file-upload-btn" class="btn btn-primary">Select a file</span>
     </div>
@@ -24,7 +23,157 @@
       </progress>
     </div>
   </label>
+  <br />
+  <h2>Last modify date: <span id="last-modify"></span></h2>
+  <h2>User: <span id="last-modifyer"></span></h2>
 </form>
+
+<script>
+  function ekUpload() {
+    function Init() {
+      var fileSelect = document.getElementById("file-upload"),
+        fileDrag = document.getElementById("file-drag"),
+        submitButton = document.getElementById("submit-button");
+
+      fileSelect.addEventListener("change", fileSelectHandler, false);
+
+      // Is XHR2 available?
+      var xhr = new XMLHttpRequest();
+      var metadata = new XMLHttpRequest();
+      metadata.responseType = "json";
+      metadata.onreadystatechange = function () {
+        if (metadata.readyState == XMLHttpRequest.DONE) {
+          document.querySelector("#last-modify").textContent =
+            metadata.response.date;
+          document.querySelector("#last-modifyer").textContent =
+            metadata.response.last_modifay;
+        }
+      };
+      metadata.open("GET", "http://localhost:8080/metadata");
+      metadata.send();
+
+      xhr.responseType = "json";
+      if (xhr.upload) {
+        // File Drop
+        fileDrag.addEventListener("dragover", fileDragHover, false);
+        fileDrag.addEventListener("dragleave", fileDragHover, false);
+        fileDrag.addEventListener("drop", fileSelectHandler, false);
+        // document.getElementById("file").src = URL.createObjectURL(fileDrag);
+      }
+    }
+
+    function fileDragHover(e) {
+      var fileDrag = document.getElementById("file-drag");
+
+      e.stopPropagation();
+      e.preventDefault();
+
+      fileDrag.className =
+        e.type === "dragover" ? "hover" : "modal-body file-upload";
+    }
+
+    function fileSelectHandler(e) {
+      // Fetch FileList object
+      var files = e.target.files || e.dataTransfer.files;
+      // Cancel event and hover styling
+      fileDragHover(e);
+
+      // Process all File objects
+      // for (var i = 0, f; (f = files[i]); i++) {
+      // }
+      parseFile(files[0]);
+      uploadFile(files[0]);
+    }
+
+    // Output
+    function output(msg) {
+      // Response
+      var m = document.getElementById("messages");
+      m.innerHTML = msg;
+    }
+
+    function parseFile(file) {
+      output("<strong>" + encodeURI(file.name) + "</strong>");
+      var fileName = file.name;
+
+      var isGood = /\.(?=xlsx|xls)/gi.test(fileName);
+      if (isGood) {
+        document.getElementById("start").classList.add("hidden");
+        document.getElementById("response").classList.remove("hidden");
+        document.getElementById("notimage").classList.add("hidden");
+      } else {
+        document.getElementById("file-image").classList.add("hidden");
+        document.getElementById("notimage").classList.remove("hidden");
+        document.getElementById("start").classList.remove("hidden");
+        document.getElementById("response").classList.add("hidden");
+        document.getElementById("file-upload-form").reset();
+      }
+    }
+
+    function setProgressMaxValue(e) {
+      var pBar = document.getElementById("file-progress");
+
+      if (e.lengthComputable) {
+        pBar.max = e.total;
+      }
+    }
+
+    function updateFileProgress(e) {
+      var pBar = document.getElementById("file-progress");
+
+      if (e.lengthComputable) {
+        pBar.value = e.loaded;
+      }
+    }
+
+    function uploadFile(file) {
+      var xhr = new XMLHttpRequest(),
+        fileInput = document.getElementById("class-roster-file"),
+        pBar = document.getElementById("file-progress"),
+        fileSizeLimit = 1024; // In MB
+      if (xhr.upload) {
+        // Check if file is less than x MB
+        if (file.size <= fileSizeLimit * 1024 * 1024) {
+          // Progress bar
+          pBar.style.display = "inline";
+          xhr.upload.addEventListener("loadstart", setProgressMaxValue, false);
+          xhr.upload.addEventListener("progress", updateFileProgress, false);
+
+          // File received / failed
+          xhr.onreadystatechange = function (e) {
+            if (xhr.readyState == 4) {
+              // Everything is good!
+              // progress.className = (xhr.status == 200 ? "success" : "failure");
+              // document.location.reload(true);
+            }
+          };
+
+          // Start upload
+          xhr.open(
+            "POST",
+            document.getElementById("file-upload-form").action,
+            true
+          );
+          xhr.setRequestHeader("X-File-Name", file.name);
+          xhr.setRequestHeader("X-File-Size", file.size);
+          const formData = new FormData();
+          formData.append("file", file);
+          xhr.send(formData);
+        } else {
+          output("Please upload a smaller file (< " + fileSizeLimit + " MB).");
+        }
+      }
+    }
+
+    // Check for the various File API support.
+    if (window.File && window.FileList && window.FileReader) {
+      Init();
+    } else {
+      document.getElementById("file-drag").style.display = "none";
+    }
+  }
+  ekUpload();
+</script>
 
 <style>
   @import url(https://maxcdn.bootstrapcdn.com/font-awesome/4.5.0/css/font-awesome.min.css);
@@ -192,143 +341,3 @@
     cursor: pointer;
   }
 </style>
-
-<script>
-  function ekUpload() {
-    function Init() {
-      console.log("Upload Initialised");
-
-      var fileSelect = document.getElementById("file-upload"),
-        fileDrag = document.getElementById("file-drag"),
-        submitButton = document.getElementById("submit-button");
-
-      fileSelect.addEventListener("change", fileSelectHandler, false);
-
-      // Is XHR2 available?
-      var xhr = new XMLHttpRequest();
-      xhr.responseType = "json";
-      if (xhr.upload) {
-        // File Drop
-        fileDrag.addEventListener("dragover", fileDragHover, false);
-        fileDrag.addEventListener("dragleave", fileDragHover, false);
-        fileDrag.addEventListener("drop", fileSelectHandler, false);
-        // document.getElementById("file-image").classList.remove("hidden");
-        document.getElementById("file").src = URL.createObjectURL(fileDrag);
-      }
-    }
-
-    function fileDragHover(e) {
-      var fileDrag = document.getElementById("file-drag");
-
-      e.stopPropagation();
-      e.preventDefault();
-
-      fileDrag.className =
-        e.type === "dragover" ? "hover" : "modal-body file-upload";
-    }
-
-    function fileSelectHandler(e) {
-      // Fetch FileList object
-      var files = e.target.files || e.dataTransfer.files;
-      console.log(files);
-      // Cancel event and hover styling
-      fileDragHover(e);
-
-      // Process all File objects
-      for (var i = 0, f; (f = files[i]); i++) {
-        parseFile(f);
-        uploadFile(f);
-      }
-    }
-
-    // Output
-    function output(msg) {
-      // Response
-      var m = document.getElementById("messages");
-      m.innerHTML = msg;
-    }
-
-    function parseFile(file) {
-      console.log(file.name);
-      output("<strong>" + encodeURI(file.name) + "</strong>");
-      var fileName = file.name;
-
-      var isGood = /\.(?=xlsx|xls)/gi.test(fileName);
-      if (isGood) {
-        document.getElementById("start").classList.add("hidden");
-        document.getElementById("response").classList.remove("hidden");
-        document.getElementById("notimage").classList.add("hidden");
-      } else {
-        document.getElementById("file-image").classList.add("hidden");
-        document.getElementById("notimage").classList.remove("hidden");
-        document.getElementById("start").classList.remove("hidden");
-        document.getElementById("response").classList.add("hidden");
-        document.getElementById("file-upload-form").reset();
-      }
-    }
-
-    function setProgressMaxValue(e) {
-      var pBar = document.getElementById("file-progress");
-
-      if (e.lengthComputable) {
-        pBar.max = e.total;
-      }
-    }
-
-    function updateFileProgress(e) {
-      var pBar = document.getElementById("file-progress");
-
-      if (e.lengthComputable) {
-        pBar.value = e.loaded;
-      }
-    }
-
-    function uploadFile(file) {
-      var xhr = new XMLHttpRequest(),
-        fileInput = document.getElementById("class-roster-file"),
-        pBar = document.getElementById("file-progress"),
-        fileSizeLimit = 1024; // In MB
-      if (xhr.upload) {
-        // Check if file is less than x MB
-        if (file.size <= fileSizeLimit * 1024 * 1024) {
-          // Progress bar
-          pBar.style.display = "inline";
-          xhr.upload.addEventListener("loadstart", setProgressMaxValue, false);
-          xhr.upload.addEventListener("progress", updateFileProgress, false);
-
-          // File received / failed
-          xhr.onreadystatechange = function (e) {
-            if (xhr.readyState == 4) {
-              // Everything is good!
-              // progress.className = (xhr.status == 200 ? "success" : "failure");
-              // document.location.reload(true);
-            }
-          };
-
-          // Start upload
-          xhr.open(
-            "POST",
-            document.getElementById("file-upload-form").action,
-            true
-          );
-          xhr.setRequestHeader("X-File-Name", file.name);
-          xhr.setRequestHeader("X-File-Size", file.size);
-          const files = document.querySelector("[name=file]").files;
-          const formData = new FormData();
-          formData.append("file", files[0]);
-          xhr.send(formData);
-        } else {
-          output("Please upload a smaller file (< " + fileSizeLimit + " MB).");
-        }
-      }
-    }
-
-    // Check for the various File API support.
-    if (window.File && window.FileList && window.FileReader) {
-      Init();
-    } else {
-      document.getElementById("file-drag").style.display = "none";
-    }
-  }
-  ekUpload();
-</script>
