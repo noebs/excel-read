@@ -5,7 +5,7 @@
 <form
   id="file-upload-form"
   class="uploader"
-  action="http://localhost:8080/upload"
+  action="http://localhost:8080/excel/upload"
   enctype="multipart/form-data"
 >
   <input id="file-upload" type="file" name="file" draggable="true" />
@@ -49,7 +49,7 @@
             metadata.response.last_modifay;
         }
       };
-      metadata.open("GET", "http://localhost:8080/metadata");
+      metadata.open("GET", "http://localhost:8080/excel/metadata");
       metadata.send();
 
       xhr.responseType = "json";
@@ -159,6 +159,8 @@
           const formData = new FormData();
           formData.append("file", file);
           xhr.send(formData);
+          alert("file upload is completed");
+          location.reload();
         } else {
           output("Please upload a smaller file (< " + fileSizeLimit + " MB).");
         }
